@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1a1a2e">
+<title>Family Calendar</title>
+<style>
+  :root{
+    --bg:#15151f;
+    --panel:#1e1e2d;
+    --panel2:#262638;
+    --line:#33334a;
+    --ink:#ecebf5;
+    --mut:#8d8da6;
+    --accent:#f5a623;
+    --home:#3ec97a;
+    --office:#4f8ff7;
+    --off:#6b6b82;
+    --m:#e0608a;
+    --k:#7b6ef0;
+    --mk:#f5a623;
+    --danger:#e05a5a;
+    --radius:16px;
+    --font-display:'Bricolage Grotesque','Trebuchet MS',sans-serif;
+    --font-body:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  }
+  @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap');
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--font-body);
+    padding-bottom:env(safe-area-inset-bottom);
+    min-height:100vh;
+    overscroll-behavior-y:contain;
+  }
+  button{font-family:inherit;cursor:pointer;border:none;color:inherit;}
+  input{font-family:inherit;}
+
+  /* ---------- Lock screen ---------- */
+  #lock{
+    position:fixed;inset:0;z-index:100;
+    background:radial-gradient(120% 80% at 50% 0%, #25253a 0%, #15151f 60%);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;
+    padding:24px;
+  }
+  #lock h1{font-family:var(--font-display);font-weight:800;font-size:30px;margin:0;letter-spacing:-.5px;}
+  #lock p{color:var(--mut);margin:0;font-size:14px;}
+  .pin-dots{display:flex;gap:14px;margin:4px 0;}
+  .pin-dot{width:15px;height:15px;border-radius:50%;border:2px solid var(--line);transition:.15s;}
+  .pin-dot.on{background:var(--accent);border-color:var(--accent);transform:scale(1.1);}
+  .pad{display:grid;grid-template-columns:repeat(3,72px);gap:14px;}
+  .pad button{
+    height:72px;border-radius:50%;background:var(--panel2);font-size:26px;font-weight:600;
+    transition:.1s;border:1px solid var(--line);
+  }
+  .pad button:active{background:var(--accent);color:#15151f;transform:scale(.94);}
+  .pad .blank{background:none;border:none;pointer-events:none;}
+  #lock.err .pin-dot{border-color:var(--danger);animation:shake .35s;}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+
+  /* ---------- App shell ---------- */
+  #app{display:none;max-width:560px;margin:0 auto;padding:0 14px 40px;}
+  header.top{
+    position:sticky;top:0;z-index:20;background:var(--bg);
+    padding:calc(env(safe-area-inset-top) + 14px) 0 12px;
+    border-bottom:1px solid var(--line);margin-bottom:16px;
+  }
+  .weeknav{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .weeknav .arrow{
+    width:42px;height:42px;border-radius:12px;background:var(--panel2);font-size:22px;
+    display:flex;align-items:center;justify-content:center;border:1px solid var(--line);
+  }
+  .weeknav .arrow:active{background:var(--accent);color:#15151f;}
+  .weeklabel{text-align:center;flex:1;}
+  .weeklabel .big{font-family:var(--font-display);font-weight:800;font-size:19px;letter-spacing:-.3px;}
+  .weeklabel .sub{color:var(--mut);font-size:12px;margin-top:1px;}
+  .weeklabel .today-btn{
+    margin-top:5px;font-size:11px;color:var(--accent);background:none;border:none;
+    text-decoration:underline;display:none;
+  }
+  .weeklabel.notnow .today-btn{display:inline;}
+  .status{text-align:center;font-size:11px;color:var(--mut);min-height:14px;margin-top:8px;}
+  .status.saving{color:var(--accent);}
+  .status.err{color:var(--danger);}
+
+  /* ---------- Day card ---------- */
+  .day{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    margin-bottom:14px;overflow:hidden;
+  }
+  .day.istoday{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);}
+  .day-head{
+    display:flex;align-items:baseline;justify-content:space-between;
+    padding:13px 16px 10px;
+  }
+  .day-head .dname{font-family:var(--font-display);font-weight:800;font-size:17px;}
+  .day-head .ddate{color:var(--mut);font-size:12px;}
+  .day-head .todaytag{
+    font-size:10px;font-weight:700;color:#15151f;background:var(--accent);
+    padding:2px 7px;border-radius:20px;margin-left:7px;letter-spacing:.5px;
+  }
+  .day-body{padding:0 16px 15px;display:flex;flex-direction:column;gap:13px;}
+
+  .section-label{font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--mut);margin-bottom:6px;font-weight:600;}
+
+  /* location buttons */
+  .loc-row{display:flex;gap:9px;}
+  .loc-btn{
+    flex:1;border-radius:11px;padding:10px 4px;text-align:center;background:var(--panel2);
+    border:1px solid var(--line);transition:.12s;
+  }
+  .loc-btn .who{font-size:11px;color:var(--mut);margin-bottom:3px;}
+  .loc-btn .val{font-weight:700;font-size:15px;letter-spacing:.3px;}
+  .loc-btn:active{transform:scale(.97);}
+  .loc-btn[data-state="Home"]{border-color:var(--home);}
+  .loc-btn[data-state="Home"] .val{color:var(--home);}
+  .loc-btn[data-state="Office"]{border-color:var(--office);}
+  .loc-btn[data-state="Office"] .val{color:var(--office);}
+  .loc-btn[data-state="Off"]{border-color:var(--off);}
+  .loc-btn[data-state="Off"] .val{color:var(--off);}
+
+  /* meetings */
+  .mtg{
+    display:flex;align-items:center;gap:9px;background:var(--panel2);border:1px solid var(--line);
+    border-radius:10px;padding:8px 10px;margin-bottom:7px;
+  }
+  .mtg .time{font-weight:700;font-size:14px;font-variant-numeric:tabular-nums;min-width:48px;}
+  .mtg .nm{flex:1;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .flag{font-size:11px;font-weight:800;padding:2px 7px;border-radius:20px;letter-spacing:.5px;color:#15151f;}
+  .flag.M{background:var(--m);}
+  .flag.K{background:var(--k);}
+  .flag.MK{background:var(--mk);}
+  .mtg .del{background:none;color:var(--mut);font-size:18px;width:24px;height:24px;line-height:1;border-radius:6px;}
+  .mtg .del:active{color:var(--danger);}
+  .add-mtg{
+    width:100%;border:1px dashed var(--line);background:none;color:var(--mut);
+    border-radius:10px;padding:9px;font-size:13px;font-weight:600;
+  }
+  .add-mtg:active{border-color:var(--accent);color:var(--accent);}
+
+  /* dinner */
+  .dinner-row{display:flex;flex-direction:column;gap:8px;}
+  .dinner-field{display:flex;align-items:center;gap:9px;}
+  .dinner-field .tag{
+    font-size:11px;font-weight:800;width:30px;height:30px;display:flex;align-items:center;justify-content:center;
+    border-radius:8px;color:#15151f;flex-shrink:0;
+  }
+  .dinner-field .tag.M{background:var(--m);}
+  .dinner-field .tag.K{background:var(--k);}
+  .dinner-field input{
+    flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:9px;
+    padding:9px 11px;color:var(--ink);font-size:14px;min-width:0;
+  }
+  .dinner-field input:focus{outline:none;border-color:var(--accent);}
+  .dinner-field input::placeholder{color:var(--mut);}
+
+  /* todo */
+  .todo-card{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:15px 16px;margin-bottom:14px;
+  }
+  .todo-card h2{font-family:var(--font-display);font-weight:800;font-size:17px;margin:0 0 12px;}
+  .todo-item{display:flex;align-items:center;gap:11px;padding:7px 0;border-bottom:1px solid var(--line);}
+  .todo-item:last-of-type{border-bottom:none;}
+  .check{
+    width:24px;height:24px;border-radius:7px;border:2px solid var(--line);flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;font-size:15px;transition:.12s;
+  }
+  .check.done{background:var(--home);border-color:var(--home);color:#15151f;}
+  .todo-item .txt{flex:1;font-size:14px;}
+  .todo-item.done .txt{text-decoration:line-through;color:var(--mut);}
+  .todo-item .del{background:none;color:var(--mut);font-size:18px;width:24px;height:24px;line-height:1;}
+  .todo-item .del:active{color:var(--danger);}
+  .todo-add{display:flex;gap:9px;margin-top:11px;}
+  .todo-add input{
+    flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:9px;
+    padding:9px 11px;color:var(--ink);font-size:14px;min-width:0;
+  }
+  .todo-add input:focus{outline:none;border-color:var(--accent);}
+  .todo-add button{background:var(--accent);color:#15151f;border-radius:9px;padding:0 16px;font-weight:700;font-size:18px;}
+
+  /* meeting modal */
+  .modal-bg{
+    position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.6);
+    display:none;align-items:flex-end;justify-content:center;
+  }
+  .modal-bg.show{display:flex;}
+  .modal{
+    background:var(--panel);width:100%;max-width:560px;border-radius:20px 20px 0 0;
+    padding:20px 18px calc(env(safe-area-inset-bottom) + 20px);
+    border-top:1px solid var(--line);
+  }
+  .modal h3{font-family:var(--font-display);font-weight:800;font-size:18px;margin:0 0 16px;}
+  .modal label{font-size:12px;color:var(--mut);display:block;margin-bottom:6px;font-weight:600;}
+  .modal input[type=time],.modal input[type=text]{
+    width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:11px;
+    padding:12px;color:var(--ink);font-size:16px;margin-bottom:16px;
+  }
+  .modal input:focus{outline:none;border-color:var(--accent);}
+  .flag-pick{display:flex;gap:9px;margin-bottom:20px;}
+  .flag-pick button{
+    flex:1;padding:11px;border-radius:11px;background:var(--panel2);border:2px solid var(--line);
+    font-weight:800;font-size:15px;color:var(--mut);
+  }
+  .flag-pick button.sel.M{background:var(--m);border-color:var(--m);color:#15151f;}
+  .flag-pick button.sel.K{background:var(--k);border-color:var(--k);color:#15151f;}
+  .flag-pick button.sel.MK{background:var(--mk);border-color:var(--mk);color:#15151f;}
+  .modal-actions{display:flex;gap:10px;}
+  .modal-actions button{flex:1;padding:13px;border-radius:11px;font-weight:700;font-size:15px;}
+  .modal-actions .cancel{background:var(--panel2);border:1px solid var(--line);}
+  .modal-actions .ok{background:var(--accent);color:#15151f;}
+
+  .refresh{
+    width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:12px;
+    padding:12px;color:var(--mut);font-size:13px;font-weight:600;margin-top:4px;
+  }
+  .refresh:active{border-color:var(--accent);color:var(--accent);}
+  .spin{display:inline-block;animation:sp 1s linear infinite;}
+  @keyframes sp{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+
+<!-- LOCK SCREEN -->
+<div id="lock">
+  <h1>Family Calendar</h1>
+  <p>Enter PIN</p>
+  <div class="pin-dots">
+    <div class="pin-dot"></div><div class="pin-dot"></div>
+    <div class="pin-dot"></div><div class="pin-dot"></div>
+  </div>
+  <div class="pad">
+    <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
+    <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
+    <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
+    <button class="blank"></button><button data-k="0">0</button><button data-k="del">⌫</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header class="top">
+    <div class="weeknav">
+      <button class="arrow" id="prevWk">‹</button>
+      <div class="weeklabel" id="weekLabel">
+        <div class="big">—</div>
+        <div class="sub"></div>
+        <button class="today-btn" id="todayBtn">jump to this week</button>
+      </div>
+      <button class="arrow" id="nextWk">›</button>
+    </div>
+    <div class="status" id="status"></div>
+  </header>
+
+  <div id="days"></div>
+
+  <div class="todo-card">
+    <h2>To-Do</h2>
+    <div id="todoList"></div>
+    <div class="todo-add">
+      <input type="text" id="todoInput" placeholder="Add a task…" enterkeyhint="done">
+      <button id="todoAdd">+</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- MEETING MODAL -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h3>New meeting</h3>
+    <label>Time</label>
+    <input type="time" id="mTime">
+    <label>Name</label>
+    <input type="text" id="mName" placeholder="e.g. Dentist" enterkeyhint="done">
+    <label>For whom</label>
+    <div class="flag-pick" id="flagPick">
+      <button data-f="M" class="M">M</button>
+      <button data-f="K" class="K">K</button>
+      <button data-f="MK" class="MK">MK</button>
+    </div>
+    <div class="modal-actions">
+      <button class="cancel" id="mCancel">Cancel</button>
+      <button class="ok" id="mOk">Add</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ====== CONFIG ======
+const API_URL = "https://script.google.com/macros/s/AKfycbwMBPa8eqo95PeRp04lAy7_14bYJoAjtF4szlwQGDBFD1tZ93KXqLdHP8p0LEFmLIFd9w/exec";
+const PIN = "0000";
+const PEOPLE = { p1:"M", p2:"K" };   // Max, K (wife)
+const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+const LOC_CYCLE = ["Home","Office","Off"];
+
+// ====== STATE ======
+let weekOffset = 0;        // 0 = current week
+let currentKey = "";       // Monday yyyy-mm-dd of viewed week
+let weekData = null;       // the loaded week object
+let saveTimer = null;
+let modalDayIndex = null;
+let modalFlag = "MK";
+let lastRefresh = Date.now();
+
+// ====== DATE HELPERS ======
+function mondayOf(offset){
+  const d = new Date();
+  d.setHours(0,0,0,0);
+  const dow = (d.getDay()+6)%7;      // 0=Mon
+  d.setDate(d.getDate()-dow+offset*7);
+  return d;
+}
+function ymd(d){
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+function fmtShort(d){
+  return d.toLocaleDateString(undefined,{day:"numeric",month:"short"});
+}
+function emptyWeek(){
+  const days = DAYS.map(()=>({
+    loc:{p1:"Home",p2:"Home"},
+    meetings:[],
+    dinner:{p1:"",p2:""}
+  }));
+  return { days, todos:[] };
+}
+
+// ====== LOCK SCREEN ======
+let pinEntry = "";
+const lock = document.getElementById("lock");
+const dots = lock.querySelectorAll(".pin-dot");
+function renderDots(){ dots.forEach((d,i)=>d.classList.toggle("on", i<pinEntry.length)); }
+lock.querySelector(".pad").addEventListener("click",e=>{
+  const k = e.target.getAttribute("data-k");
+  if(!k) return;
+  if(k==="del"){ pinEntry = pinEntry.slice(0,-1); renderDots(); return; }
+  if(pinEntry.length>=4) return;
+  pinEntry += k; renderDots();
+  if(pinEntry.length===4){
+    if(pinEntry===PIN){
+      setTimeout(()=>{ lock.style.display="none"; document.getElementById("app").style.display="block"; init(); },150);
+    } else {
+      lock.classList.add("err");
+      setTimeout(()=>{ lock.classList.remove("err"); pinEntry=""; renderDots(); },400);
+    }
+  }
+});
+
+// ====== STATUS ======
+const statusEl = document.getElementById("status");
+function setStatus(txt,cls){ statusEl.textContent=txt; statusEl.className="status"+(cls?" "+cls:""); }
+
+// ====== NETWORK ======
+async function loadWeek(){
+  lastRefresh = Date.now();
+  setStatus("loading…","saving");
+  try{
+    const r = await fetch(API_URL+"?action=load&week="+currentKey,{method:"GET"});
+    const j = await r.json();
+    if(j.ok){
+      weekData = j.data ? JSON.parse(j.data) : emptyWeek();
+      // safety: ensure structure
+      if(!weekData.days || weekData.days.length!==7) weekData = emptyWeek();
+      render();
+      setStatus("up to date","");
+    } else { throw new Error(j.error||"load failed"); }
+  }catch(err){
+    setStatus("couldn't load — check connection","err");
+    if(!weekData) { weekData = emptyWeek(); render(); }
+  }
+}
+async function saveWeek(){
+  setStatus("saving…","saving");
+  try{
+    const body = new URLSearchParams();
+    body.set("action","save");
+    body.set("week",currentKey);
+    body.set("data",JSON.stringify(weekData));
+    const r = await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body});
+    const j = await r.json();
+    if(j.ok){ setStatus("saved ✓",""); }
+    else throw new Error(j.error||"save failed");
+  }catch(err){
+    setStatus("save failed — tap refresh & retry","err");
+  }
+}
+function queueSave(){
+  clearTimeout(saveTimer);
+  setStatus("saving…","saving");
+  saveTimer = setTimeout(saveWeek,700);
+}
+
+// ====== RENDER ======
+function gotoWeek(off){ weekOffset=off; currentKey=ymd(mondayOf(off)); loadWeek(); updateHeader(); }
+function updateHeader(){
+  const mon = mondayOf(weekOffset);
+  const sun = new Date(mon); sun.setDate(sun.getDate()+6);
+  const lbl = document.getElementById("weekLabel");
+  lbl.querySelector(".big").textContent = fmtShort(mon)+" – "+fmtShort(sun);
+  lbl.querySelector(".sub").textContent = mon.getFullYear();
+  lbl.classList.toggle("notnow", weekOffset!==0);
+}
+function render(){
+  updateHeader();
+  const wrap = document.getElementById("days");
+  wrap.innerHTML="";
+  const todayKey = ymd(new Date());
+  weekData.days.forEach((day,i)=>{
+    const dDate = new Date(mondayOf(weekOffset)); dDate.setDate(dDate.getDate()+i);
+    const isToday = ymd(dDate)===todayKey;
+    const card = document.createElement("div");
+    card.className="day"+(isToday?" istoday":"");
+    card.innerHTML = `
+      <div class="day-head">
+        <div><span class="dname">${DAYS[i]}</span>${isToday?'<span class="todaytag">TODAY</span>':''}</div>
+        <span class="ddate">${fmtShort(dDate)}</span>
+      </div>
+      <div class="day-body">
+        <div>
+          <div class="section-label">Where</div>
+          <div class="loc-row">
+            <button class="loc-btn" data-day="${i}" data-p="p1" data-state="${day.loc.p1}">
+              <div class="who">${PEOPLE.p1}</div><div class="val">${day.loc.p1}</div></button>
+            <button class="loc-btn" data-day="${i}" data-p="p2" data-state="${day.loc.p2}">
+              <div class="who">${PEOPLE.p2}</div><div class="val">${day.loc.p2}</div></button>
+          </div>
+        </div>
+        <div>
+          <div class="section-label">Meetings</div>
+          <div class="mtg-list" data-day="${i}">
+            ${day.meetings.map((m,mi)=>`
+              <div class="mtg">
+                <span class="time">${m.time}</span>
+                <span class="nm">${escapeHtml(m.name)}</span>
+                <span class="flag ${m.flag}">${m.flag}</span>
+                <button class="del" data-day="${i}" data-mtg="${mi}">×</button>
+              </div>`).join("")}
+          </div>
+          <button class="add-mtg" data-day="${i}">+ add meeting</button>
+        </div>
+        <div>
+          <div class="section-label">Dinner</div>
+          <div class="dinner-row">
+            <div class="dinner-field">
+              <span class="tag M">${PEOPLE.p1}</span>
+              <input type="text" data-day="${i}" data-p="p1" value="${escapeAttr(day.dinner.p1)}" placeholder="meal…">
+            </div>
+            <div class="dinner-field">
+              <span class="tag K">${PEOPLE.p2}</span>
+              <input type="text" data-day="${i}" data-p="p2" value="${escapeAttr(day.dinner.p2)}" placeholder="meal…">
+            </div>
+          </div>
+        </div>
+      </div>`;
+    wrap.appendChild(card);
+  });
+  renderTodos();
+  bindDayEvents();
+}
+function renderTodos(){
+  const list = document.getElementById("todoList");
+  list.innerHTML="";
+  weekData.todos.forEach((t,i)=>{
+    const row = document.createElement("div");
+    row.className="todo-item"+(t.done?" done":"");
+    row.innerHTML=`
+      <div class="check ${t.done?'done':''}" data-todo="${i}">${t.done?'✓':''}</div>
+      <span class="txt">${escapeHtml(t.text)}</span>
+      <button class="del" data-tododel="${i}">×</button>`;
+    list.appendChild(row);
+  });
+}
+
+// ====== EVENTS ======
+function bindDayEvents(){
+  document.querySelectorAll(".loc-btn").forEach(b=>{
+    b.onclick=()=>{
+      const di=+b.dataset.day, p=b.dataset.p;
+      const cur=weekData.days[di].loc[p];
+      const next=LOC_CYCLE[(LOC_CYCLE.indexOf(cur)+1)%3];
+      weekData.days[di].loc[p]=next;
+      b.dataset.state=next; b.querySelector(".val").textContent=next;
+      queueSave();
+    };
+  });
+  document.querySelectorAll(".add-mtg").forEach(b=>{
+    b.onclick=()=>openModal(+b.dataset.day);
+  });
+  document.querySelectorAll(".mtg .del").forEach(b=>{
+    b.onclick=()=>{
+      weekData.days[+b.dataset.day].meetings.splice(+b.dataset.mtg,1);
+      render(); queueSave();
+    };
+  });
+  document.querySelectorAll(".dinner-field input").forEach(inp=>{
+    inp.oninput=()=>{ weekData.days[+inp.dataset.day].dinner[inp.dataset.p]=inp.value; queueSave(); };
+  });
+  document.querySelectorAll(".check").forEach(c=>{
+    c.onclick=()=>{ const i=+c.dataset.todo; weekData.todos[i].done=!weekData.todos[i].done; renderTodos(); bindTodoEvents(); queueSave(); };
+  });
+  bindTodoEvents();
+}
+function bindTodoEvents(){
+  document.querySelectorAll(".check").forEach(c=>{
+    c.onclick=()=>{ const i=+c.dataset.todo; weekData.todos[i].done=!weekData.todos[i].done; renderTodos(); bindTodoEvents(); queueSave(); };
+  });
+  document.querySelectorAll("[data-tododel]").forEach(b=>{
+    b.onclick=()=>{ weekData.todos.splice(+b.dataset.tododel,1); renderTodos(); bindTodoEvents(); queueSave(); };
+  });
+}
+
+// todo add
+document.getElementById("todoAdd").onclick=addTodo;
+document.getElementById("todoInput").addEventListener("keydown",e=>{ if(e.key==="Enter") addTodo(); });
+function addTodo(){
+  const inp=document.getElementById("todoInput");
+  const v=inp.value.trim(); if(!v) return;
+  weekData.todos.push({text:v,done:false});
+  inp.value=""; renderTodos(); bindTodoEvents(); queueSave();
+}
+
+// nav
+document.getElementById("prevWk").onclick=()=>gotoWeek(weekOffset-1);
+document.getElementById("nextWk").onclick=()=>gotoWeek(weekOffset+1);
+document.getElementById("todayBtn").onclick=()=>gotoWeek(0);
+
+// auto-refresh: when the app is reopened or brought back from the background,
+// silently reload the current week so you always see the latest edits.
+function maybeAutoRefresh(){
+  // only refresh if it's been a few seconds, to avoid double-loading on launch
+  if(document.getElementById("app").style.display==="block" && Date.now()-lastRefresh>3000){
+    lastRefresh = Date.now();
+    loadWeek();
+  }
+}
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden) maybeAutoRefresh(); });
+window.addEventListener("focus",maybeAutoRefresh);
+window.addEventListener("pageshow",e=>{ if(e.persisted) maybeAutoRefresh(); });
+
+// ====== MEETING MODAL ======
+const modalBg=document.getElementById("modalBg");
+function openModal(dayIndex){
+  modalDayIndex=dayIndex; modalFlag="MK";
+  document.getElementById("mTime").value="";
+  document.getElementById("mName").value="";
+  document.querySelectorAll("#flagPick button").forEach(b=>b.classList.toggle("sel",b.dataset.f==="MK"));
+  modalBg.classList.add("show");
+}
+document.getElementById("flagPick").onclick=e=>{
+  const f=e.target.dataset.f; if(!f) return;
+  modalFlag=f;
+  document.querySelectorAll("#flagPick button").forEach(b=>b.classList.toggle("sel",b.dataset.f===f));
+};
+document.getElementById("mCancel").onclick=()=>modalBg.classList.remove("show");
+modalBg.onclick=e=>{ if(e.target===modalBg) modalBg.classList.remove("show"); };
+document.getElementById("mOk").onclick=()=>{
+  const t=document.getElementById("mTime").value;
+  const n=document.getElementById("mName").value.trim();
+  if(!t){ alert("Please pick a time."); return; }
+  if(!n){ alert("Please enter a name."); return; }
+  const arr=weekData.days[modalDayIndex].meetings;
+  arr.push({time:t,name:n,flag:modalFlag});
+  arr.sort((a,b)=>a.time.localeCompare(b.time));
+  modalBg.classList.remove("show");
+  render(); queueSave();
+};
+
+// ====== UTIL ======
+function escapeHtml(s){return (s||"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function escapeAttr(s){return (s||"").replace(/"/g,'&quot;');}
+
+// ====== INIT ======
+function init(){ gotoWeek(0); }
+</script>
+</body>
+</html>
