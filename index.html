@@ -294,9 +294,41 @@
   </div>
 </div>
 
-<script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
+import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-database.js";
+
+// ====== FIREBASE ======
+const firebaseConfig = {
+  apiKey: "AIzaSyD1b28sgjy-B6_OXDXexiFKy8UftaJ8Lgg",
+  authDomain: "family-calendar-81d98.firebaseapp.com",
+  databaseURL: "https://family-calendar-81d98-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "family-calendar-81d98",
+  storageBucket: "family-calendar-81d98.firebasestorage.app",
+  messagingSenderId: "764349590269",
+  appId: "1:764349590269:web:933c2c9bdcaf76f451ec94"
+};
+const FAMILY_ID = "family1";
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+const db = getDatabase(fbApp);
+const authReady = signInAnonymously(auth);
+
+function weekRef(key){ return ref(db, `families/${FAMILY_ID}/weeks/${key}`); }
+function summaryRef(key){ return ref(db, `families/${FAMILY_ID}/summary/${key}`); }
+async function dbGetWeek(key){
+  await authReady;
+  const snap = await get(weekRef(key));
+  return normalizeWeek(snap.exists() ? snap.val() : null);
+}
+async function dbSetWeek(key, data){
+  await authReady;
+  await set(weekRef(key), data);
+  await set(summaryRef(key), data.days.reduce((sum,d)=>sum+d.tasks.length,0));
+}
+
 // ====== CONFIG ======
-const API_URL = "https://script.google.com/macros/s/AKfycbwMBPa8eqo95PeRp04lAy7_14bYJoAjtF4szlwQGDBFD1tZ93KXqLdHP8p0LEFmLIFd9w/exec";
 const PIN = "0000";
 const PEOPLE = { p1:"M", p2:"K" };
 const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
@@ -450,18 +482,17 @@ async function loadMonthCounts(){
   setStatus(moStatus,"loading…","saving");
   const weeks=weeksInMonth(monthCursor).map(ymd);
   try{
-    const r=await fetch(API_URL+"?action=summary&weeks="+encodeURIComponent(weeks.join(",")));
-    const j=await r.json();
-    if(j.ok && j.counts){
-      weeks.forEach(k=>{
-        const n=j.counts[k]||0;
-        const heatEl=document.querySelector('[data-heat="'+k+'"]');
-        const cntEl=document.querySelector('[data-cnt="'+k+'"]');
-        if(heatEl) heatEl.style.background=heatClass(n);
-        if(cntEl) cntEl.querySelector("b").textContent=n;
-      });
-      setStatus(moStatus,"","");
-    } else throw new Error("bad summary");
+    await authReady;
+    const snap=await get(ref(db,`families/${FAMILY_ID}/summary`));
+    const counts=snap.exists()?snap.val():{};
+    weeks.forEach(k=>{
+      const n=counts[k]||0;
+      const heatEl=document.querySelector('[data-heat="'+k+'"]');
+      const cntEl=document.querySelector('[data-cnt="'+k+'"]');
+      if(heatEl) heatEl.style.background=heatClass(n);
+      if(cntEl) cntEl.querySelector("b").textContent=n;
+    });
+    setStatus(moStatus,"","");
   }catch(err){ setStatus(moStatus,"couldn't load counts","err"); }
 }
 document.getElementById("prevMo").onclick=()=>{ monthCursor=new Date(monthCursor.getFullYear(),monthCursor.getMonth()-1,1); openMonth(); };
@@ -478,20 +509,15 @@ async function loadWeek(){
   lastRefresh=Date.now();
   setStatus(wkStatus,"loading…","saving");
   try{
-    const r=await fetch(API_URL+"?action=load&week="+currentKey);
-    const j=await r.json();
-    if(j.ok){ weekData=normalizeWeek(j.data?JSON.parse(j.data):null); renderWeek(); setStatus(wkStatus,"up to date",""); }
-    else throw new Error(j.error||"load failed");
+    weekData=await dbGetWeek(currentKey);
+    renderWeek(); setStatus(wkStatus,"up to date","");
   }catch(err){ setStatus(wkStatus,"couldn't load — check connection","err"); if(!weekData){ weekData=emptyWeek(); renderWeek(); } }
 }
 async function saveWeek(){
   setStatus(wkStatus,"saving…","saving");
   try{
-    const body=new URLSearchParams();
-    body.set("action","save"); body.set("week",currentKey); body.set("data",JSON.stringify(weekData));
-    const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body});
-    const j=await r.json();
-    if(j.ok) setStatus(wkStatus,"saved ✓",""); else throw new Error(j.error||"save failed");
+    await dbSetWeek(currentKey, weekData);
+    setStatus(wkStatus,"saved ✓","");
   }catch(err){ setStatus(wkStatus,"save failed — reopen & retry","err"); }
 }
 function queueSave(){ clearTimeout(saveTimer); setStatus(wkStatus,"saving…","saving"); saveTimer=setTimeout(saveWeek,700); }
@@ -668,18 +694,9 @@ async function pushTodo(i){
   const nextKey=ymd((function(){ const m=mondayOf(weekOffset); m.setDate(m.getDate()+7); return m; })());
   setStatus(wkStatus,"pushing…","saving");
   try{
-    // fetch next week's current data
-    const r=await fetch(API_URL+"?action=load&week="+nextKey);
-    const j=await r.json();
-    if(!j.ok) throw new Error("load next week failed");
-    const next=normalizeWeek(j.data?JSON.parse(j.data):null);
+    const next=await dbGetWeek(nextKey);
     next.todos.push({text:item.text,done:false,assign:item.assign});
-    // save next week
-    const body=new URLSearchParams();
-    body.set("action","save"); body.set("week",nextKey); body.set("data",JSON.stringify(next));
-    const r2=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body});
-    const j2=await r2.json();
-    if(!j2.ok) throw new Error("save next week failed");
+    await dbSetWeek(nextKey, next);
     // remove from this week and save
     weekData.todos.splice(i,1);
     renderTodos();
