@@ -14,7 +14,7 @@
   --bg:#0a0b0d;
   --panel:#13161c;
   --panel2:#1b1f27;
-  --entry:#1e232c;
+  --entry:#2a313c;
   --weekend:rgba(126,138,168,.10);
   --line:rgba(255,255,255,0.09);
   --line2:rgba(255,255,255,0.2);
@@ -140,7 +140,7 @@ input{font-family:inherit;}
 .bankhol{text-align:center;font-size:13px;font-weight:700;color:var(--accent);padding:4px 0;letter-spacing:.5px;}
 
 /* tasks */
-.task{display:flex;align-items:center;gap:9px;background:var(--entry);border:1px solid var(--line);border-radius:9px;
+.task{display:flex;align-items:center;gap:9px;background:var(--entry);border:1px solid var(--line2);border-radius:9px;
   padding:7px 9px;margin-bottom:6px;}
 .task .time{font-weight:700;font-size:13px;font-variant-numeric:tabular-nums;min-width:42px;}
 .task .time.anytime{color:var(--mut);font-weight:600;font-size:11px;}
@@ -148,7 +148,7 @@ input{font-family:inherit;}
 .task .editzone{display:flex;align-items:center;gap:9px;flex:1;min-width:0;}
 .gcal{font-size:13px;line-height:1;padding:4px 6px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--mut);cursor:pointer;flex-shrink:0;}
 .assign{font-size:11px;font-weight:800;min-width:34px;text-align:center;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--mut);}
-.assign.person{background:rgba(198,242,78,.16);color:var(--accent);border-color:var(--accent);}
+.assign.person{font-weight:800;}
 .assign.all{background:rgba(245,181,74,.16);color:var(--both);border-color:var(--both);}
 .assign:active{transform:scale(.94);}
 .add-task{width:100%;border:1px dashed var(--line);border-radius:8px;color:var(--mut);padding:8px;font-size:12px;font-weight:600;}
@@ -161,7 +161,7 @@ input{font-family:inherit;}
 .add-row input::placeholder{color:var(--mut);}
 
 /* section list items (supper, breakfast, etc — same look as tasks) */
-.sup{display:flex;align-items:center;gap:9px;background:var(--entry);border:1px solid var(--line);border-radius:9px;
+.sup{display:flex;align-items:center;gap:9px;background:var(--entry);border:1px solid var(--line2);border-radius:9px;
   padding:7px 9px;margin-bottom:6px;}
 .sup .nm{flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;padding:2px 0;}
 
@@ -258,7 +258,7 @@ input{font-family:inherit;}
       <h2 class="display">To-Do</h2>
       <div id="todoList"></div>
       <div class="todo-add add-row">
-        <input type="text" id="todoInput" placeholder="new" enterkeyhint="done">
+        <input type="text" id="todoInput" placeholder="new" enterkeyhint="done" autocomplete="off">
       </div>
     </div>
     <div id="days"></div>
@@ -275,12 +275,12 @@ input{font-family:inherit;}
     <div class="settings-panel">
       <h2 class="display">People</h2>
       <div id="userList"></div>
-      <div class="add-row"><input type="text" id="userAddInput" placeholder="Add person…" enterkeyhint="done"></div>
+      <div class="add-row"><input type="text" id="userAddInput" placeholder="Add person…" enterkeyhint="done" autocomplete="off"></div>
     </div>
     <div class="settings-panel">
       <h2 class="display">Daily sections</h2>
       <div id="sectionList"></div>
-      <div class="add-row"><input type="text" id="sectionAddInput" placeholder="Add section (e.g. Breakfast)…" enterkeyhint="done"></div>
+      <div class="add-row"><input type="text" id="sectionAddInput" placeholder="Add section (e.g. Breakfast)…" enterkeyhint="done" autocomplete="off"></div>
     </div>
   </div>
 </div>
@@ -298,7 +298,7 @@ input{font-family:inherit;}
       <input type="time" id="tTime">
     </div>
     <label>What</label>
-    <input type="text" id="tName" placeholder="e.g. Dentist" enterkeyhint="done">
+    <input type="text" id="tName" placeholder="e.g. Dentist" enterkeyhint="done" autocomplete="off">
     <div class="modal-actions">
       <button class="del" id="tDel" style="display:none;">Delete</button>
       <button class="cancel" id="tCancel">Cancel</button>
@@ -312,7 +312,7 @@ input{font-family:inherit;}
   <div class="modal">
     <h3 class="display">Edit task</h3>
     <label>Text</label>
-    <input type="text" id="tdName" placeholder="Task…" enterkeyhint="done">
+    <input type="text" id="tdName" placeholder="Task…" enterkeyhint="done" autocomplete="off">
     <div class="modal-actions">
       <button class="del" id="tdDel">Delete</button>
       <button class="cancel" id="tdCancel">Cancel</button>
@@ -326,7 +326,7 @@ input{font-family:inherit;}
   <div class="modal">
     <h3 class="display" id="listModalTitle">Edit item</h3>
     <label>Name</label>
-    <input type="text" id="liName" placeholder="e.g. Pizza" enterkeyhint="done">
+    <input type="text" id="liName" placeholder="e.g. Pizza" enterkeyhint="done" autocomplete="off">
     <div class="modal-actions">
       <button class="del" id="liDel">Delete</button>
       <button class="cancel" id="liCancel">Cancel</button>
@@ -409,6 +409,9 @@ function assignCycle(){ return ["-", ...USERS.map(u=>u.id), "ALL"]; }
 function carCycle(){ return ["Together", ...USERS.map(u=>u.id)]; }
 function cycleNext(arr,cur){ const i=arr.indexOf(cur); return arr[(i<0?0:i+1)%arr.length]; }
 function labelFor(id){ if(id==="-") return "-"; if(id==="ALL") return "All"; if(id==="Together") return "Together"; return HANDLES[id]||"?"; }
+const USER_PALETTE=["#e0608a","#56b6c2","#8a7ffb","#4f8ff7","#ff8a5c","#5fbf85"];
+function colorFor(id){ let h=0; for(const ch of String(id)) h=(h*31+ch.charCodeAt(0))|0; return USER_PALETTE[Math.abs(h)%USER_PALETTE.length]; }
+function assignStyle(a){ if(a==="-"||a==="ALL"||a==="Together") return ""; const c=colorFor(a); return `border-color:${c};color:${c};background:${c}26`; }
 
 function refreshUI(){
   if(document.getElementById("settings").classList.contains("active")) renderSettings();
@@ -720,7 +723,7 @@ function renderDays(){
       html+=`<div class="task">
         <div class="editzone" data-edit="${i}-${idx}">${timeHtml}<span class="nm">${escapeHtml(t.name)}</span></div>
         <button class="gcal" data-gcal="${i}-${idx}">📅</button>
-        <button class="${assignClass(t.assign)}" data-assign="${i}-${idx}">${labelFor(t.assign)}</button>
+        <button class="${assignClass(t.assign)}" style="${assignStyle(t.assign)}" data-assign="${i}-${idx}">${labelFor(t.assign)}</button>
       </div>`;
     });
     html+=`<button class="add-task" data-add="${i}">new</button></div>`;
@@ -730,10 +733,10 @@ function renderDays(){
       (day.lists[sec.id]||[]).forEach((it,ii)=>{
         html+=`<div class="sup">
           <span class="nm" data-listedit="${i}-${sec.id}-${ii}">${escapeHtml(it.name)}</span>
-          <button class="${assignClass(it.assign)}" data-listassign="${i}-${sec.id}-${ii}">${labelFor(it.assign)}</button>
+          <button class="${assignClass(it.assign)}" style="${assignStyle(it.assign)}" data-listassign="${i}-${sec.id}-${ii}">${labelFor(it.assign)}</button>
         </div>`;
       });
-      html+=`<div class="add-row"><input type="text" data-listadd="${i}-${sec.id}" placeholder="new" enterkeyhint="done"></div></div>`;
+      html+=`<div class="add-row"><input type="text" data-listadd="${i}-${sec.id}" placeholder="new" enterkeyhint="done" autocomplete="off"></div></div>`;
     });
 
     card.innerHTML=html;
@@ -755,7 +758,7 @@ function renderTodos(){
     row.innerHTML=`
       <div class="check ${t.done?'done':''}" data-tcheck="${i}">${t.done?'✓':''}</div>
       <span class="txt" data-tedit="${i}">${escapeHtml(t.text)}</span>
-      <button class="${assignClass(t.assign)}" data-tassign="${i}">${labelFor(t.assign)}</button>
+      <button class="${assignClass(t.assign)}" style="${assignStyle(t.assign)}" data-tassign="${i}">${labelFor(t.assign)}</button>
       <button class="push" data-tpush="${i}">Push</button>`;
     list.appendChild(row);
   });
@@ -803,7 +806,7 @@ function bindWeek(){
     const [d,t]=b.dataset.assign.split("-").map(Number);
     const cur=weekData.days[d].tasks[t].assign;
     const nx=cycleNext(assignCycle(),cur);
-    weekData.days[d].tasks[t].assign=nx; b.className=assignClass(nx); b.textContent=labelFor(nx); renderStrip(); queueSave();
+    weekData.days[d].tasks[t].assign=nx; b.className=assignClass(nx); b.style.cssText=assignStyle(nx); b.textContent=labelFor(nx); renderStrip(); queueSave();
   });
   // section items: inline add
   document.querySelectorAll("[data-listadd]").forEach(inp=>{
@@ -820,7 +823,7 @@ function bindWeek(){
     const [d,sid,idx]=b.dataset.listassign.split("-");
     const item=weekData.days[+d].lists[sid][+idx];
     const nx=cycleNext(assignCycle(),item.assign);
-    item.assign=nx; b.className=assignClass(nx); b.textContent=labelFor(nx); queueSave();
+    item.assign=nx; b.className=assignClass(nx); b.style.cssText=assignStyle(nx); b.textContent=labelFor(nx); queueSave();
   });
   // section items: tap name to edit/delete
   document.querySelectorAll("[data-listedit]").forEach(el=>el.onclick=()=>{
@@ -833,7 +836,7 @@ function bindTodos(){
   document.querySelectorAll("[data-tassign]").forEach(b=>b.onclick=()=>{
     const i=+b.dataset.tassign,cur=weekData.todos[i].assign;
     const nx=cycleNext(assignCycle(),cur);
-    weekData.todos[i].assign=nx; b.className=assignClass(nx); b.textContent=labelFor(nx); queueSave();
+    weekData.todos[i].assign=nx; b.className=assignClass(nx); b.style.cssText=assignStyle(nx); b.textContent=labelFor(nx); queueSave();
   });
   document.querySelectorAll("[data-tedit]").forEach(b=>b.onclick=()=>openTodoModal(+b.dataset.tedit));
   document.querySelectorAll("[data-tpush]").forEach(b=>b.onclick=()=>pushTodo(+b.dataset.tpush));
@@ -943,14 +946,14 @@ function renderSettings(){
   USERS.forEach(u=>{
     const row=document.createElement("div"); row.className="settings-row";
     row.innerHTML=`<span class="handle-badge">${escapeHtml(HANDLES[u.id]||"?")}</span>
-      <input type="text" class="inp" value="${escapeAttr(u.name)}" data-uid="${u.id}">
+      <input type="text" class="inp" value="${escapeAttr(u.name)}" data-uid="${u.id}" autocomplete="off">
       <button class="iconb-del" data-deluser="${u.id}" ${USERS.length<=1?"disabled":""}>✕</button>`;
     ul.appendChild(row);
   });
   const sl=document.getElementById("sectionList"); sl.innerHTML="";
   SECTIONS.forEach(s=>{
     const row=document.createElement("div"); row.className="settings-row";
-    row.innerHTML=`<input type="text" class="inp" value="${escapeAttr(s.label)}" data-sid="${s.id}">
+    row.innerHTML=`<input type="text" class="inp" value="${escapeAttr(s.label)}" data-sid="${s.id}" autocomplete="off">
       <button class="iconb-del" data-delsec="${s.id}" ${SECTIONS.length<=1?"disabled":""}>✕</button>`;
     sl.appendChild(row);
   });
