@@ -297,7 +297,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
-import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-database.js";
+import { getDatabase, ref, get, set, onValue } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-database.js";
 
 // ====== FIREBASE ======
 const firebaseConfig = {
@@ -341,6 +341,7 @@ const CAR_CYCLE = ["Together","M","K"];
 let weekOffset = 0;
 let currentKey = "";
 let weekData = null;
+let weekUnsub = null;
 let saveTimer = null;
 let lastRefresh = Date.now();
 let monthCursor = startOfMonth(new Date());   // first day of displayed month
@@ -444,6 +445,7 @@ function setStatus(el,txt,cls){ el.textContent=txt; el.className="status"+(cls?"
 // ====== MONTH SCREEN ======
 const moStatus=document.getElementById("moStatus");
 async function openMonth(){
+  unsubscribeWeek();
   show("month");
   renderMonthShell();
   await loadMonthCounts();
@@ -500,17 +502,23 @@ document.getElementById("nextMo").onclick=()=>{ monthCursor=new Date(monthCursor
 
 // ====== WEEK SCREEN ======
 const wkStatus=document.getElementById("wkStatus");
-function openWeek(){ show("week"); currentKey=ymd(mondayOf(weekOffset)); loadWeek(); }
+function openWeek(){ show("week"); currentKey=ymd(mondayOf(weekOffset)); subscribeWeek(); }
 document.getElementById("wkTitleBtn").onclick=()=>{ monthCursor=startOfMonth(new Date(currentKey+"T00:00:00")); openMonth(); };
 document.getElementById("prevWk").onclick=()=>{ weekOffset--; openWeek(); };
 document.getElementById("nextWk").onclick=()=>{ weekOffset++; openWeek(); };
 
-async function loadWeek(){
-  lastRefresh=Date.now();
+function unsubscribeWeek(){ if(weekUnsub){ weekUnsub(); weekUnsub=null; } }
+async function subscribeWeek(){
+  unsubscribeWeek();
   setStatus(wkStatus,"loading…","saving");
+  const key=currentKey;
   try{
-    weekData=await dbGetWeek(currentKey);
-    renderWeek(); setStatus(wkStatus,"up to date","");
+    await authReady;
+    if(key!==currentKey) return; // navigated away while waiting on auth
+    weekUnsub = onValue(weekRef(key), snap=>{
+      weekData = normalizeWeek(snap.exists() ? snap.val() : null);
+      renderWeek(); setStatus(wkStatus,"up to date","");
+    }, ()=>{ setStatus(wkStatus,"couldn't load — check connection","err"); if(!weekData){ weekData=emptyWeek(); renderWeek(); } });
   }catch(err){ setStatus(wkStatus,"couldn't load — check connection","err"); if(!weekData){ weekData=emptyWeek(); renderWeek(); } }
 }
 async function saveWeek(){
@@ -704,7 +712,7 @@ async function pushTodo(i){
     setStatus(wkStatus,"pushed to next week ✓","");
   }catch(err){
     setStatus(wkStatus,"push failed — try again","err");
-    loadWeek(); // re-sync so nothing looks half-moved
+    subscribeWeek(); // re-sync so nothing looks half-moved
   }
 }
 
@@ -765,11 +773,12 @@ document.getElementById("spDel").onclick=()=>{ weekData.days[editingSupper.d].su
 document.getElementById("spOk").onclick=()=>{ const v=document.getElementById("spName").value.trim(); if(!v){ alert("Enter a meal or delete it."); return; } weekData.days[editingSupper.d].supper[editingSupper.s].name=v; supperModal.classList.remove("show"); renderDays(); queueSave(); };
 
 // ====== AUTO REFRESH ======
+// Week screen stays live via the onValue subscription; only the month
+// screen's counts need a manual refresh on refocus.
 function maybeAutoRefresh(){
   if(Date.now()-lastRefresh<3000) return;
   lastRefresh=Date.now();
-  if(document.getElementById("week").classList.contains("active")) loadWeek();
-  else if(document.getElementById("month").classList.contains("active")) loadMonthCounts();
+  if(document.getElementById("month").classList.contains("active")) loadMonthCounts();
 }
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden) maybeAutoRefresh(); });
 window.addEventListener("focus",maybeAutoRefresh);
